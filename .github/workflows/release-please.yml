@@ -1,0 +1,25 @@
+name: release-please
+
+# After every merge to main, release-please keeps one "chore(main): release x.y.z" PR open with the
+# next version and its CHANGELOG entry, worked out from the Conventional Commit titles since the last
+# release. Merging that PR tags vX.Y.Z and publishes the GitHub release: a stable version.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
