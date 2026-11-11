@@ -12,7 +12,10 @@ cargo build --release
 
 sudo install -m 755 "$CARGO_TARGET_DIR/release/splash" /usr/local/bin/zombori-splash
 sudo install -m 644 system/splash/zombori-splash.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable zombori-splash.service
+sudo install -m 755 "$CARGO_TARGET_DIR/release/bootsound" /usr/local/bin/zombori-bootsound
+sudo install -m 644 system/bootsound/zombori-bootsound.service /etc/systemd/system/
 
-echo "Installed. Reboot to see it, or run: sudo systemctl start zombori-splash"
+sudo systemctl daemon-reload
+sudo systemctl enable zombori-splash.service zombori-bootsound.service
+
+echo "Installed. Reboot to see and hear it, or run: sudo systemctl start zombori-splash zombori-bootsound"

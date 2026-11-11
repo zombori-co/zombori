@@ -2,3 +2,6 @@
 # VM disks, firmware variable stores and downloads: large and machine-specific.
 /vm/images/
 .DS_Store
+
+# Audio masters (e.g. 32-bit float DAW exports); only the converted boot.wav is built in.
+/assets/sounds/*-source.wav

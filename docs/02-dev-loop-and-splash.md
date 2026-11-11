@@ -70,6 +70,30 @@ the same thing you would change in the BIOS setup screen.
 
 In testing, this took the splash from ~13 s after power-on to under 3 s.
 
+## 5. Boot sound
+
+`bootsound` plays `assets/sounds/boot.wav` through ALSA as soon as the sound card is ready. The file
+is compiled into the binary, so after replacing it, run `dev-install.sh` again.
+
+Check that sound works, and install the ALSA headers the build needs:
+
+```sh
+aplay /mnt/zombori/assets/sounds/boot.wav   # should play on the Mac's speakers
+sudo apt install -y libasound2-dev pkg-config
+```
+
+No sound? Unmute in `alsamixer` (`M` on Master and PCM, arrow keys for volume), then
+`sudo alsactl store` so the volume comes back on every boot.
+
+The file must be **16-bit PCM WAV**; any sample rate, mono or stereo. Convert anything else on the
+Mac (FL Studio and most DAWs export 32-bit float by default):
+
+```sh
+afconvert -f WAVE -d LEI16@48000 song.mp3 assets/sounds/boot.wav
+```
+
+Keep it to a few seconds, with a short fade-out at the end. Logs: `journalctl -b -u zombori-bootsound`.
+
 ## Where to go from here
 
 - Change the look: `assets/logo/` (logo and mockup) and `crates/theme` (colors, timing, font).

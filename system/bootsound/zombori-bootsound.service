@@ -1,0 +1,16 @@
+[Unit]
+Description=Zombori boot sound
+Documentation=file:///mnt/zombori/docs/FOUNDATION.md
+# udev reaches sound.target as soon as a sound card appears; being wanted by it (below) starts us
+# right then. Wait for alsa-restore too, so the card has its saved volume rather than muted.
+DefaultDependencies=no
+After=sound.target alsa-restore.service
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/zombori-bootsound
+
+[Install]
+WantedBy=sound.target
