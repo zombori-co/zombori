@@ -1,0 +1,17 @@
+[Unit]
+Description=Zombori boot splash
+Documentation=file:///mnt/zombori/docs/FOUNDATION.md
+# Start as early as possible: as soon as the root filesystem is there and udev is creating
+# device nodes. The splash itself waits for the GPU to appear.
+DefaultDependencies=no
+After=local-fs.target systemd-udevd.service
+Wants=systemd-udev-trigger.service
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/zombori-splash
+
+[Install]
+WantedBy=sysinit.target
