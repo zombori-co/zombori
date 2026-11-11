@@ -63,6 +63,8 @@ crates/
   gate/         spoken question before login. lib: answer, beat, recognize (Whisper), head3d
                 (ray-traced 3D head, distance fields), scene (views + headbang motion);
                 main.rs = the Linux flow; examples/ preview (frames) and transcribe (Whisper)
+  tavern/       the session after the gate: the man asks which room, opens its program in cage.
+                lib: rooms (words → room → command, /etc/zombori/rooms.toml); uses gate's lib
   greeter/      placeholder (M5: greetd client)
 system/
   dev-install.sh             builds the workspace in the VM, installs zombori-<crate> + units,
@@ -71,13 +73,16 @@ system/
 vm/             QEMU scripts; common.sh holds the shared machine definition
 assets/         logo/ (pixel art + generators), sounds/ (boot.wav, celebrate placeholder;
                 local/ = your own clips, git-ignored)
-docs/           FOUNDATION.md (plan), 01 hand install, 02 dev loop + splash + boot sound, 03 gate
+docs/           FOUNDATION.md (plan), 01 hand install, 02 dev loop + splash + boot sound, 03 gate,
+                04 tavern
 ```
 
-Boot order: UEFI → GRUB → kernel → initramfs → systemd → [splash, bootsound] → [gate] → getty (later
-greetd → [greeter]). The splash and sound are cosmetic: nothing waits for them. The gate holds back
-only the tty1 login, exits with an error (letting boot continue) whenever it can't run, and never
-touches SSH or the serial console.
+Boot order: UEFI → GRUB → kernel → initramfs → systemd → [splash, bootsound] → [gate] → greetd
+(automatic login, no password) → zombori-session → [tavern] → rooms open in cage. Without greetd and
+cage installed, the plain tty1 login follows the gate instead. The splash and sound are cosmetic:
+nothing waits for them. The gate holds back only the screen's login, exits with an error (letting
+boot continue) whenever it can't run, and never touches SSH or the serial console. If the tavern
+exits, greetd falls back to a password login.
 
 # Code style
 

@@ -27,12 +27,12 @@ mod linux {
     use std::thread;
     use std::time::{Duration, Instant};
 
-    use audio::speech::{Detector, State, meter};
     use audio::wav::Wav;
     use gate::answer::is_correct;
     use gate::beat::{self, Beat};
     use gate::recognize::{RATE, Recognizer};
     use gate::scene::{Scene, View, WRONG_S};
+    use gate::voice::{self, load, to_f32, wrong_tone};
     use theme::{VIRTUAL_H, VIRTUAL_W};
 
     /// Installed by system/dev-install.sh. The question and the music are your own clips.
@@ -42,8 +42,6 @@ mod linux {
     /// The celebration plays at most this much of the clip, fading out at the end.
     const MAX_CELEBRATION_S: f32 = 25.0;
     const FADE_OUT_S: f32 = 2.0;
-    /// Microphone audio ignored right after the question, while its echo dies down.
-    const SETTLE_S: f32 = 0.6;
 
     #[derive(Clone, Copy)]
     enum Stage {
@@ -130,7 +128,7 @@ mod linux {
     /// Ask until the answer is right, then celebrate.
     fn converse(link: &Link) -> Result<(), String> {
         let recognizer = Recognizer::load(MODEL)?;
-        let question = load(QUESTION);
+        let question = load(QUESTION, "gate");
         if question.is_none() {
             eprintln!("gate: no question clip at {QUESTION}; listening without asking");
         }
@@ -148,14 +146,13 @@ mod linux {
             }
 
             set(link, Stage::Listening);
-            let Some(answer) = listen(link)? else {
+            let Some(answer) = voice::listen(|level| link.lock().unwrap().level = level)? else {
                 eprintln!("gate: heard nothing, asking again");
                 continue;
             };
 
             set(link, Stage::Thinking);
-            let samples: Vec<f32> = answer.iter().map(|&s| f32::from(s) / 32768.0).collect();
-            let heard = recognizer.transcribe(&samples)?;
+            let heard = recognizer.transcribe(&to_f32(&answer))?;
             eprintln!("gate: heard {heard:?}");
             if is_correct(&heard) {
                 break;
@@ -172,36 +169,9 @@ mod linux {
         Ok(())
     }
 
-    /// Record until the speaker has finished. `None` if nobody spoke.
-    fn listen(link: &Link) -> Result<Option<Vec<i16>>, String> {
-        let mic = audio::Microphone::open(RATE).map_err(|e| format!("microphone: {e}"))?;
-        let mut detector = Detector::new(RATE);
-        let mut frame = vec![0i16; detector.frame_len()];
-        let mut recorded = Vec::new();
-        // The question's tail can come back through the microphone (from the speakers, and late
-        // through the VM's microphone stream); let it die down instead of taking it as an answer.
-        let settle = (SETTLE_S * RATE as f32) as usize / frame.len();
-        for _ in 0..settle {
-            mic.read(&mut frame)
-                .map_err(|e| format!("microphone: {e}"))?;
-            link.lock().unwrap().level = meter(&frame);
-        }
-        loop {
-            mic.read(&mut frame)
-                .map_err(|e| format!("microphone: {e}"))?;
-            recorded.extend_from_slice(&frame);
-            link.lock().unwrap().level = meter(&frame);
-            match detector.feed(&frame) {
-                State::Done { start, end } => return Ok(Some(recorded[start..end].to_vec())),
-                State::NoSpeech => return Ok(None),
-                State::Waiting | State::Speaking => {}
-            }
-        }
-    }
-
     /// Play the clip (or wait, without one) while the head sways to its beat.
     fn celebrate(link: &Link) -> Result<(), String> {
-        let Some(clip) = load(MUSIC) else {
+        let Some(clip) = load(MUSIC, "gate") else {
             eprintln!("gate: no music at {MUSIC}; celebrating in silence");
             set(link, Stage::Celebrating(beat::FALLBACK, 0.0));
             thread::sleep(Duration::from_secs(8));
@@ -220,17 +190,6 @@ mod linux {
         audio::play_wav(&clip).map_err(|e| format!("playing: {e}"))
     }
 
-    fn load(path: &str) -> Option<Wav> {
-        let bytes = std::fs::read(path).ok()?;
-        match audio::wav::parse(&bytes) {
-            Ok(wav) => Some(wav),
-            Err(e) => {
-                eprintln!("gate: {path}: {e} (it must be 16-bit PCM WAV)");
-                None
-            }
-        }
-    }
-
     /// Keep the first MAX_CELEBRATION_S of the music, fading out over its last FADE_OUT_S.
     fn trim_and_fade(mut wav: Wav) -> Wav {
         let channels = usize::from(wav.channels.max(1));
@@ -245,18 +204,5 @@ mod linux {
             }
         }
         wav
-    }
-
-    /// A short falling two-note "no".
-    fn wrong_tone() -> Vec<i16> {
-        let note = |freq: f32, seconds: f32| {
-            let n = (seconds * RATE as f32) as usize;
-            (0..n).map(move |i| {
-                let t = i as f32 / RATE as f32;
-                let envelope = (t / 0.01).min(1.0) * (1.0 - i as f32 / n as f32);
-                ((t * freq * std::f32::consts::TAU).sin() * envelope * 9000.0) as i16
-            })
-        };
-        note(392.0, 0.16).chain(note(277.0, 0.28)).collect()
     }
 }

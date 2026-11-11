@@ -1,0 +1,4 @@
+#!/bin/sh
+# Your session on the screen, started by greetd after the gate: the tavern, which opens programs.
+# If the tavern exits, the session ends and greetd shows a password login instead.
+exec /usr/local/bin/zombori-tavern

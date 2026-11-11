@@ -1,9 +1,10 @@
 [Unit]
 Description=Zombori gate: the spoken question before the login prompt
 Documentation=file:///mnt/zombori/docs/03-gate.md
-# Needs the sound card (and its saved volumes). The login prompt on the screen waits for the gate.
+# Needs the sound card (and its saved volumes). Whatever owns the screen next waits for the gate:
+# the plain login prompt, or greetd (the automatic login into the tavern).
 After=sound.target alsa-restore.service zombori-splash.service zombori-bootsound.service
-Before=getty@tty1.service
+Before=getty@tty1.service greetd.service
 
 [Service]
 # getty@tty1 starts only once this has exited. The gate exits after the right answer, or with an

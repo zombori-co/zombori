@@ -34,6 +34,12 @@ const SILVER: Rgb = [200, 206, 214];
 const LASER_TEAL: Rgb = [60, 220, 214];
 const LASER_RED: Rgb = [226, 54, 70];
 const RECORDING: Rgb = [230, 40, 50];
+const WOOD_A: Rgb = [58, 34, 22];
+const WOOD_B: Rgb = [66, 40, 26];
+const WOOD_GAP: Rgb = [30, 16, 12];
+const WOOD_GRAIN: Rgb = [44, 24, 16];
+const WOOD_BEAM: Rgb = [40, 22, 14];
+const LANTERN: Rgb = [255, 176, 82];
 
 /// One moment of the gate. `t` is seconds since that stage started.
 #[derive(Clone, Copy, Debug)]
@@ -49,17 +55,38 @@ pub enum View {
     /// Correct: the hands drop, and the headbang starts with the music `music` seconds in (after
     /// a spoken intro, for example).
     Celebrating { t: f32, beat: Beat, music: f32 },
+    /// A room was chosen: he bows toward it and the picture fades out before the app opens.
+    Opening { t: f32 },
 }
 
 /// A wrong answer's head shake lasts this long before asking again.
 pub const WRONG_S: f32 = 1.2;
+/// The bow and fade before an app opens.
+pub const OPENING_S: f32 = 1.0;
+
+/// What is behind the man.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum Backdrop {
+    /// The gate: laser beams in the dark.
+    #[default]
+    Lasers,
+    /// The tavern: a warm wooden wall lit by two lanterns.
+    Tavern,
+}
 
 #[derive(Default)]
-pub struct Scene;
+pub struct Scene {
+    backdrop: Backdrop,
+}
 
 impl Scene {
+    /// The gate's scene, with lasers behind him.
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    pub fn with_backdrop(backdrop: Backdrop) -> Self {
+        Self { backdrop }
     }
 
     pub fn render(&self, view: View, out: &mut [Rgb]) {
@@ -67,6 +94,7 @@ impl Scene {
             hands: 1.0,
             ..Pose::default()
         };
+        // `lasers_at` is how bright the backdrop's lights are (lasers, or the tavern's lanterns).
         let (pose, lasers_at, red, fade_in) = match view {
             // Asking: calm, a slight breathing nod.
             View::Asking { t, first } => {
@@ -110,6 +138,11 @@ impl Scene {
                 // The lasers flare on every hit.
                 (pose, 0.25 + 0.6 * bang(beats) * amplitude, 0.0, 1.0)
             }
+            // Opening: a small bow, then everything fades to black.
+            View::Opening { t } => {
+                let nod = 0.18 * ease(t / 0.4);
+                (Pose { nod, ..clasped }, 0.3, 0.0, 1.0 - ease(t / OPENING_S))
+            }
         };
 
         out.fill(BACKGROUND);
@@ -118,9 +151,13 @@ impl Scene {
             | View::Listening { t, .. }
             | View::Thinking { t }
             | View::Wrong { t }
-            | View::Celebrating { t, .. } => t,
+            | View::Celebrating { t, .. }
+            | View::Opening { t } => t,
         };
-        lasers(out, t, lasers_at, red);
+        match self.backdrop {
+            Backdrop::Lasers => lasers(out, t, lasers_at, red),
+            Backdrop::Tavern => tavern_wall(out, t, lasers_at, red),
+        }
         jacket(out, COLLAR_Y + pose.body.round() as i32);
         head3d::render(out, pose);
         match view {
@@ -178,6 +215,60 @@ fn lasers(out: &mut [Rgb], t: f32, strength: f32, red: f32) {
         let drift = (t * 0.3 + i as f32 * 1.7).sin() * 6.0;
         let color = mix(if teal { LASER_TEAL } else { LASER_RED }, LASER_RED, red);
         line(out, x0, y0 + drift, x1, y1 - drift, color, strength);
+    }
+}
+
+/// The tavern's back wall: dark wooden planks under a beam, warmed by two flickering lanterns
+/// whose glow follows `glow` (the voice, while listening); `red` flashes it red.
+fn tavern_wall(out: &mut [Rgb], t: f32, glow: f32, red: f32) {
+    const PLANK: i32 = 11;
+    const BEAM_Y: i32 = 16;
+    const LANTERNS: [(f32, f32); 2] = [(22.0, 34.0), (138.0, 34.0)];
+    let flicker = 0.9 + 0.1 * (t * 9.0).sin() * (t * 5.3).cos();
+    for y in 0..VIRTUAL_H as i32 {
+        for x in 0..VIRTUAL_W as i32 {
+            let plank = x / PLANK;
+            let base = if (BEAM_Y - 4..BEAM_Y).contains(&y) {
+                WOOD_BEAM
+            } else if x % PLANK == 0 {
+                WOOD_GAP
+            } else if (x * 7 + plank * 13 + y / 9 * 3) % 23 == 0 {
+                WOOD_GRAIN // a knot or a streak of grain
+            } else if plank % 2 == 0 {
+                WOOD_A
+            } else {
+                WOOD_B
+            };
+            let warmth: f32 = LANTERNS
+                .iter()
+                .map(|&(lx, ly)| {
+                    let d2 = (x as f32 - lx).powi(2) + (y as f32 - ly).powi(2) * 1.4;
+                    (-d2 / 900.0).exp()
+                })
+                .sum();
+            let k = (warmth * (0.35 + 0.65 * glow) * flicker).min(1.0);
+            let lit = mix(base, LANTERN, k * 0.55);
+            out[(y as u32 * VIRTUAL_W + x as u32) as usize] = mix(lit, LASER_RED, red * 0.35);
+        }
+    }
+    // The lanterns themselves: a bright flame in a dark frame.
+    for &(lx, ly) in &LANTERNS {
+        let (lx, ly) = (lx as i32, ly as i32);
+        for dy in -3i32..=3 {
+            for dx in -2i32..=2 {
+                let edge = dx.abs() == 2 || dy.abs() == 3;
+                put(
+                    out,
+                    lx + dx,
+                    ly + dy,
+                    if edge {
+                        OUTLINE
+                    } else {
+                        mix(LANTERN, [255, 250, 220], flicker - 0.8)
+                    },
+                );
+            }
+        }
     }
 }
 
@@ -379,6 +470,29 @@ mod tests {
             (settled_x - rest_x).abs() < 1.0,
             "settled {settled_x} vs rest {rest_x}"
         );
+    }
+
+    #[test]
+    fn tavern_is_warm_wood() {
+        let mut out = vec![[0; 3]; (VIRTUAL_W * VIRTUAL_H) as usize];
+        let view = View::Asking {
+            t: 1.0,
+            first: false,
+        };
+        Scene::with_backdrop(Backdrop::Tavern).render(view, &mut out);
+        // The top-left corner is wall: brown, red above blue, and not the gate's dark background.
+        let [r, g, b] = out[(4 * VIRTUAL_W + 4) as usize];
+        assert!(r > g && g > b && r > 40, "wall color {:?}", [r, g, b]);
+        // The man is still there in front of it.
+        assert!(out.iter().any(|p| head3d::LENS.contains(p)));
+    }
+
+    #[test]
+    fn opening_bows_and_fades_to_black() {
+        let start = frame(View::Opening { t: 0.0 });
+        assert!(start.iter().any(|&p| p != BACKGROUND));
+        let end = frame(View::Opening { t: OPENING_S });
+        assert!(end.iter().all(|&p| p == BACKGROUND));
     }
 
     #[test]

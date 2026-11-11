@@ -1,0 +1,13 @@
+[package]
+name = "tavern"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+theme = { path = "../theme" }
+audio = { path = "../audio" }
+screen = { path = "../screen" }
+gate = { path = "../gate" }
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.2.1"

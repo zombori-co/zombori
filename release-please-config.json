@@ -23,6 +23,7 @@
         { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(@.name.value==='greeter')].version" },
         { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(@.name.value==='screen')].version" },
         { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(@.name.value==='splash')].version" },
+        { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(@.name.value==='tavern')].version" },
         { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(@.name.value==='theme')].version" }
       ]
     }
