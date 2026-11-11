@@ -1,4 +1,6 @@
 /target
+# Personal Claude Code settings; the shared ones are .claude/settings.json.
+/.claude/settings.local.json
 # VM disks, firmware variable stores and downloads: large and machine-specific.
 /vm/images/
 .DS_Store
