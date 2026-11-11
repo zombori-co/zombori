@@ -1,0 +1,4 @@
+/target
+# VM disks, firmware variable stores and downloads: large and machine-specific.
+/vm/images/
+.DS_Store

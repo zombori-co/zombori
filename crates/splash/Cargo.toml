@@ -1,0 +1,14 @@
+[package]
+name = "splash"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+theme = { path = "../theme" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+drm = "0.15"
+
+[dev-dependencies]
+png = "0.18"
