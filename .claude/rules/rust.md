@@ -11,8 +11,11 @@ Every component splits into two parts. Keep it that way when adding code.
 
 | Part | Example | Builds on | Tested |
 |---|---|---|---|
-| Pure logic | `splash/src/scene.rs`, `bootsound/src/wav.rs`, `theme` | everywhere | `cargo test` on the Mac and in CI |
-| Hardware access | `splash/src/display.rs` (DRM), `bootsound/src/main.rs` (ALSA) | Linux only | by hand in the target VM |
+| Pure logic | `splash/src/scene.rs`, `audio/src/{wav,speech}.rs`, `screen/src/scale.rs`, `gate/src/{answer,beat,scene}.rs`, `theme` | everywhere | `cargo test` on the Mac and in CI |
+| Hardware access | `screen/src/display.rs` (DRM), `audio/src/alsa_io.rs` (ALSA), `gate/src/main.rs` | Linux only | by hand in the target VM |
+
+Shared hardware code lives in the `screen` and `audio` libraries; a new component uses those
+rather than talking to DRM or ALSA itself.
 
 - Hardware modules and Linux-only dependencies sit behind `#[cfg(target_os = "linux")]` and
   `[target.'cfg(target_os = "linux")'.dependencies]`.

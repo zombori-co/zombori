@@ -6,9 +6,7 @@ license.workspace = true
 
 [dependencies]
 theme = { path = "../theme" }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-drm = "0.15"
+screen = { path = "../screen" }
 
 [dev-dependencies]
 png = "0.18"

@@ -29,10 +29,12 @@ cargo fmt --all
 vm/target.sh                                            # boot the OS (window + serial + ssh :2223)
 vm/builder.sh                                           # workshop VM, target disk as /dev/vdb
 vm/snapshot.sh save|restore|list|delete <name>          # target disk snapshots, VM must be off
+vm/mic.sh                                               # Mac microphone into the VM (for the gate)
 
 # Inside the target VM
 /mnt/zombori/system/dev-install.sh                      # build (release) + install + enable units
 sudo systemctl start zombori-splash zombori-bootsound   # replay without rebooting
+sudo systemctl start zombori-gate                       # the question (from the QEMU window)
 journalctl -b -u zombori-<component>                    # logs
 systemd-analyze critical-chain zombori-<component>.service
 ```
@@ -53,21 +55,29 @@ without that.
 
 ```
 crates/
-  theme/        shared look: palette, embedded logo PNG, 5x7 font, boot timeline (theme::boot)
-  splash/       boot logo on DRM/KMS. scene.rs = pure render(t); display.rs = DRM, double buffered
-  bootsound/    boot jingle via ALSA. wav.rs = pure WAV parser; main.rs = playback
+  theme/        shared look: palette, logo, 5x7 font, boot timeline (theme::boot), decode_png
+  screen/       library: scale.rs = pure virtual-screen upscale; display.rs = DRM/KMS, Screen
+  audio/        library: wav.rs + speech.rs (pure: WAV, speech start/end); alsa_io.rs = play, mic
+  splash/       boot logo. scene.rs = pure render(t)
+  bootsound/    boot jingle, embedded assets/sounds/boot.wav
+  gate/         spoken question before login. lib: answer, beat, recognize (Whisper), head3d
+                (ray-traced 3D head, distance fields), scene (views + headbang motion);
+                main.rs = the Linux flow; examples/ preview (frames) and transcribe (Whisper)
   greeter/      placeholder (M5: greetd client)
 system/
-  dev-install.sh             builds the workspace in the VM, installs zombori-<crate> + units
+  dev-install.sh             builds the workspace in the VM, installs zombori-<crate> + units,
+                             the Whisper model and the gate's clips into /usr/local/share/zombori
   <component>/*.service      systemd units, installed to /etc/systemd/system/
 vm/             QEMU scripts; common.sh holds the shared machine definition
-assets/         logo/ (pixel art + mockup generator), sounds/boot.wav (16-bit PCM)
-docs/           FOUNDATION.md (plan), 01 hand install, 02 dev loop + splash + boot sound
+assets/         logo/ (pixel art + generators), sounds/ (boot.wav, celebrate placeholder;
+                local/ = your own clips, git-ignored)
+docs/           FOUNDATION.md (plan), 01 hand install, 02 dev loop + splash + boot sound, 03 gate
 ```
 
-Boot order: UEFI → GRUB → kernel → initramfs → systemd → [splash, bootsound] → getty (later greetd →
-[greeter]). The splash and sound are cosmetic: nothing waits for them, and they must never be able
-to stop boot.
+Boot order: UEFI → GRUB → kernel → initramfs → systemd → [splash, bootsound] → [gate] → getty (later
+greetd → [greeter]). The splash and sound are cosmetic: nothing waits for them. The gate holds back
+only the tty1 login, exits with an error (letting boot continue) whenever it can't run, and never
+touches SSH or the serial console.
 
 # Code style
 
@@ -106,8 +116,18 @@ attribution as well; this rule applies even where that setting does not reach.
 # Gotchas
 
 - Building on the 9p share is slow: `dev-install.sh` puts `CARGO_TARGET_DIR` on the VM's own disk.
-- The workspace needs `libasound2-dev` and `pkg-config` to build on Linux (the `alsa` crate); without
-  them every crate fails to build, the splash included.
+- QEMU's macOS audio backend (coreaudio) only plays; it cannot record. The VM's microphone is the
+  Mac's, streamed by `vm/mic.sh` as UDP to port 4713 (UDP: no connection to go stale when the VM
+  reboots) and played into the Loopback card by
+  `system/vm-mic/` (installed once in the VM). Check a QEMU feature exists in the build before
+  relying on it (`qemu-system-aarch64 -audiodev help`, `strings` on the binary).
+- The workspace needs `libasound2-dev pkg-config cmake clang libclang-dev` to build on Linux (ALSA,
+  and whisper.cpp for the gate); without them every crate fails to build, the splash included.
+- The gate's Linux code can't be type-checked from the Mac (whisper.cpp won't cross-compile); CI
+  and the VM build it. Its pure parts and both examples run on the Mac.
+- The gate's question and music are the user's own clips (`assets/sounds/local/`, git-ignored, as
+  the repo is public). Never commit them or generate replacements for the question.
+- `.claude/settings.json` denies `rm -rf`: write to a fresh path instead of deleting one.
 - `boot.wav` must be 16-bit PCM WAV. DAWs export 32-bit float by default; convert with
   `afconvert -f WAVE -d LEI16@48000 in.wav assets/sounds/boot.wav`.
 - Adding a crate: add its `Cargo.lock` entry to `extra-files` in `release-please-config.json`, or

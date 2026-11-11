@@ -5,6 +5,4 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-
-[target.'cfg(target_os = "linux")'.dependencies]
-alsa = "0.12"
+audio = { path = "../audio" }

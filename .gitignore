@@ -7,3 +7,6 @@
 
 # Audio masters (e.g. 32-bit float DAW exports); only the converted boot.wav is built in.
 /assets/sounds/*-source.wav
+
+# Your own gate clips (question, music); dev-install.sh prefers them over the placeholders.
+/assets/sounds/local/
