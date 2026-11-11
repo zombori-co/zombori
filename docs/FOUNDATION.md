@@ -22,16 +22,18 @@ real work done, while every layer stays open to being swapped out and understood
 ## The boot pipeline: where our pieces go
 
 ```
- UEFI firmware ─► GRUB ─► Linux kernel ─► initramfs ─► systemd ─► greetd ─► session
-                   │                         │            │          │
-                   │                         │            │          └─ [greeter] our entry screen
+ UEFI firmware ─► GRUB ─► Linux kernel ─► initramfs ─► systemd ─► [gate] ─► greetd ─► session
+                   │                         │            │         │          │
+                   │                         │            │         │          └─ [greeter] our entry screen
+                   │                         │            │         └─ the spoken question (docs/03-gate.md)
                    │                         │            └─ [bootsound] after sound.target
                    │                         └─ [splash] eventually starts here, as early as possible
                    └─ GRUB theme: pixel font + logo
 ```
 
 Each bracketed part is a crate in `crates/`. `theme` holds what they share: palette, logo, font,
-timing. That keeps the splash, the sound and the greeter feeling like one product.
+timing; `screen` and `audio` hold the shared drawing and sound code. That keeps the splash, the
+sound, the gate and the greeter feeling like one product.
 
 ## Repository layout
 
@@ -39,8 +41,11 @@ timing. That keeps the splash, the sound and the greeter feeling like one produc
 Cargo.toml        workspace
 crates/
   theme/          shared look: palette, assets, constants
-  splash/         boot logo, drawn straight to the GPU through DRM/KMS
-  bootsound/      boot jingle through ALSA
+  screen/         shared: drawing to the GPU through DRM/KMS
+  audio/          shared: WAV, playback, microphone, speech detection (ALSA)
+  splash/         boot logo
+  bootsound/      boot jingle
+  gate/           spoken question before login, with offline speech recognition
   greeter/        login screen (a greetd client)
 assets/           pixel art (logo/), audio (sounds/), fonts (fonts/)
 system/           config we install: systemd units, greetd config, GRUB theme, initramfs hooks

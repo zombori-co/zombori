@@ -71,11 +71,17 @@ impl Image {
 /// Decode the logo. It is embedded at compile time, so this cannot fail at runtime
 /// unless the asset itself is broken.
 pub fn logo() -> Image {
-    let mut decoder = png::Decoder::new(std::io::Cursor::new(logo::PNG));
+    decode_png(logo::PNG)
+}
+
+/// Decode a PNG embedded at compile time (with `include_bytes!`) into RGBA pixels. Panics only if
+/// the asset itself is broken, which its crate's tests should catch.
+pub fn decode_png(bytes: &[u8]) -> Image {
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::ALPHA);
-    let mut reader = decoder.read_info().expect("logo PNG header");
-    let mut buf = vec![0; reader.output_buffer_size().expect("logo PNG size")];
-    let info = reader.next_frame(&mut buf).expect("logo PNG data");
+    let mut reader = decoder.read_info().expect("PNG header");
+    let mut buf = vec![0; reader.output_buffer_size().expect("PNG size")];
+    let info = reader.next_frame(&mut buf).expect("PNG data");
     let pixels = buf[..info.buffer_size()].as_chunks::<4>().0.to_vec();
     Image {
         width: info.width,

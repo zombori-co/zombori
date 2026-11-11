@@ -5,7 +5,8 @@ that replace the userspace piece by piece.
 
 - **Plan and decisions:** [docs/FOUNDATION.md](docs/FOUNDATION.md)
 - **Start here:** [docs/01-hand-install.md](docs/01-hand-install.md), then
-  [docs/02-dev-loop-and-splash.md](docs/02-dev-loop-and-splash.md)
+  [docs/02-dev-loop-and-splash.md](docs/02-dev-loop-and-splash.md), then
+  [docs/03-gate.md](docs/03-gate.md)
 
 ```sh
 vm/fetch-base.sh            # download + verify the Debian builder image

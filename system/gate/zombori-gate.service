@@ -1,0 +1,19 @@
+[Unit]
+Description=Zombori gate: the spoken question before the login prompt
+Documentation=file:///mnt/zombori/docs/03-gate.md
+# Needs the sound card (and its saved volumes). The login prompt on the screen waits for the gate.
+After=sound.target alsa-restore.service zombori-splash.service zombori-bootsound.service
+Before=getty@tty1.service
+
+[Service]
+# getty@tty1 starts only once this has exited. The gate exits after the right answer, or with an
+# error if it can't run at all (no screen, microphone or model), so it never locks you out for
+# good. SSH and the serial console never wait for it.
+Type=oneshot
+# The splash holds the screen and the boot sound the speaker for a few seconds; wait until both
+# have finished (at most 15 s) so the question doesn't talk over the jingle.
+ExecStartPre=/bin/sh -c 'for i in $(seq 75); do systemctl -q is-active zombori-splash.service zombori-bootsound.service || exit 0; sleep 0.2; done'
+ExecStart=/usr/local/bin/zombori-gate
+
+[Install]
+WantedBy=getty.target

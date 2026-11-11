@@ -84,7 +84,7 @@ impl Display {
                 continue;
             }
             if let Some(display) = Self::setup(card)? {
-                eprintln!("splash: using {} ({driver})", path.display());
+                eprintln!("screen: using {} ({driver})", path.display());
                 return Ok(Some(display));
             }
         }
@@ -174,7 +174,7 @@ impl Display {
             {
                 Ok(()) => self.wait_for_flip()?,
                 Err(e) => {
-                    eprintln!("splash: page flip unsupported ({e}), falling back to mode set");
+                    eprintln!("screen: page flip unsupported ({e}), falling back to mode set");
                     self.can_flip = false;
                     self.set_crtc(fb)?;
                 }
