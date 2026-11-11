@@ -1,17 +1,23 @@
-//! Is what we heard the right answer? The question is «Скажи мені, що таке Зомборі?» and the answer
-//! is «музика». Speech recognition gives text without stress, so «мУзика» and «музИка» look the
-//! same; spelling variants and one misheard letter are accepted, other words are not.
+//! Did we hear a given word? The gate's question is «Що таке Зомборі?» and the answer is «музика»;
+//! the tavern listens for room names the same way. Speech recognition gives text without stress,
+//! so «мУзика» and «музИка» look the same; spelling variants and one misheard letter (in words of
+//! five letters or more) are accepted, other words are not.
 
-/// The answer, normalized (see `normalize`).
-const ANSWER: &str = "музика";
-/// Latin spellings, in case the recognizer transliterates.
-const LATIN: [&str; 2] = ["muzyka", "muzika"];
+/// The gate's answer, and Latin spellings in case the recognizer transliterates.
+const ANSWER: [&str; 3] = ["музика", "muzyka", "muzika"];
 
 pub fn is_correct(heard: &str) -> bool {
-    normalize(heard).split_whitespace().any(|word| {
-        let near = word.chars().count() >= 5 && distance(word, ANSWER) <= 1;
-        near || LATIN.contains(&word)
-    })
+    ANSWER.iter().any(|word| matches(heard, word))
+}
+
+/// Whether `word` (a single word) is among what was heard, allowing for one misheard letter.
+pub fn matches(heard: &str, word: &str) -> bool {
+    let word = normalize(word);
+    let word = word.trim();
+    let tolerance = if word.chars().count() >= 5 { 1 } else { 0 };
+    normalize(heard)
+        .split_whitespace()
+        .any(|w| distance(w, word) <= tolerance)
 }
 
 /// Lowercase, drop stress marks and punctuation, and fold letters that differ between spellings
@@ -87,6 +93,18 @@ mod tests {
         ] {
             assert!(!is_correct(heard), "{heard:?} should be rejected");
         }
+    }
+
+    #[test]
+    fn matches_other_words_the_same_way() {
+        assert!(matches("Браузер.", "браузер"));
+        assert!(matches("відкрий браузер, будь ласка", "Браузер"));
+        assert!(matches("Браузэр", "браузер")); // one letter misheard
+        assert!(!matches("бар", "браузер"));
+        assert!(!matches("музика", "браузер"));
+        // Short words must match exactly: one letter is too much of a short word.
+        assert!(matches("так", "так"));
+        assert!(!matches("там", "так"));
     }
 
     #[test]

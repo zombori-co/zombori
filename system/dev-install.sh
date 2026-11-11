@@ -28,6 +28,12 @@ sudo install -m 755 "$CARGO_TARGET_DIR/release/bootsound" /usr/local/bin/zombori
 sudo install -m 644 system/bootsound/zombori-bootsound.service /etc/systemd/system/
 sudo install -m 755 "$CARGO_TARGET_DIR/release/gate" /usr/local/bin/zombori-gate
 sudo install -m 644 system/gate/zombori-gate.service /etc/systemd/system/
+sudo install -m 755 "$CARGO_TARGET_DIR/release/tavern" /usr/local/bin/zombori-tavern
+sudo install -m 755 system/session/zombori-session /usr/local/bin/zombori-session
+# The tavern's rooms: only the first time, so your own changes in /etc/zombori/rooms.toml stay.
+if [[ ! -f /etc/zombori/rooms.toml ]]; then
+  sudo install -D -m 644 system/session/rooms.toml /etc/zombori/rooms.toml
+fi
 
 sudo install -d "$SHARE"
 if ! echo "$MODEL_SHA256  $SHARE/ggml-base.bin" | sha256sum -c --status 2>/dev/null; then
@@ -38,9 +44,10 @@ if ! echo "$MODEL_SHA256  $SHARE/ggml-base.bin" | sha256sum -c --status 2>/dev/n
   rm /tmp/ggml-base.bin
 fi
 
-# The gate's clips: your own from assets/sounds/local/ (git-ignored) when present, otherwise the
-# placeholders in the repo. There is no placeholder question: without one the gate just listens.
-for clip in question celebrate; do
+# The clips: your own from assets/sounds/local/ (git-ignored) when present, otherwise the
+# placeholders in the repo. There are no placeholder questions: without one, the gate (question)
+# and the tavern (room-question) just listen.
+for clip in question celebrate room-question; do
   for src in "assets/sounds/local/$clip.wav" "assets/sounds/$clip.wav"; do
     if [[ -f "$src" ]]; then
       sudo install -m 644 "$src" "$SHARE/$clip.wav"
@@ -52,5 +59,21 @@ done
 
 sudo systemctl daemon-reload
 sudo systemctl enable zombori-splash.service zombori-bootsound.service zombori-gate.service
+
+# The session after the gate: greetd logs you in without a password and starts the tavern, which
+# opens programs in cage. Set up only once those are installed (docs/04-tavern.md).
+# (greetd lives in /usr/sbin, which is not in a normal user's PATH.)
+if PATH="$PATH:/usr/sbin" command -v greetd >/dev/null && command -v cage >/dev/null; then
+  sed "s/@USER@/$USER/" system/session/greetd.toml | sudo tee /etc/greetd/config.toml >/dev/null
+  sudo install -D -m 644 system/session/greetd-zombori.conf \
+    /etc/systemd/system/greetd.service.d/zombori.conf
+  sudo systemctl daemon-reload
+  sudo systemctl disable getty@tty1.service 2>/dev/null || true
+  sudo systemctl enable greetd.service
+  echo "Session: after the gate, $USER is logged in automatically into the tavern."
+else
+  echo "Session not set up (no greetd/cage): after the gate comes the usual login prompt."
+  echo "  For the tavern: sudo apt install -y greetd cage firefox-esr, then run this again."
+fi
 
 echo "Installed. Reboot to see and hear it, or run: sudo systemctl start zombori-gate"

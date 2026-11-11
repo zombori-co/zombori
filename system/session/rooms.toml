@@ -1,0 +1,11 @@
+# The tavern's rooms. Installed as /etc/zombori/rooms.toml by system/dev-install.sh (only if that
+# file doesn't exist yet, so your changes there are kept).
+#
+# Say one of a room's `words` in the tavern and the man takes you to it; the room opens `command`
+# full screen (inside the cage kiosk compositor). Close the program to come back to the tavern.
+# To use a different program, change `command`; to add a room, add another [[room]].
+
+[[room]]
+name = "Браузер"
+words = ["браузер", "інтернет", "browser"]
+command = ["firefox-esr"]

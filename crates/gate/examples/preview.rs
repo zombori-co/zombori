@@ -1,11 +1,12 @@
-//! Render the gate's views to PNG files, to look at the animation without a VM:
-//!   cargo run -p gate --example preview -- <out-dir> [music.wav]
+//! Render the gate's (and the tavern's) views to PNG files, to look at them without a VM:
+//!   cargo run -p gate --example preview -- <out-dir> [music.wav] [--tavern]
 //! Writes one 4x-scaled frame every 1/25 s for each stage. With a music clip, the celebration is
 //! timed to it exactly as the gate would (beat and music start found the same way) and lasts as
-//! long as the gate would play it; frames for it alone go to <out-dir>/celebration/.
+//! long as the gate would play it; frames for it alone go to <out-dir>/celebration/. `--tavern`
+//! draws the tavern's backdrop instead of the lasers, and adds the bow before a room opens.
 
 use gate::beat::{self, Beat};
-use gate::scene::{Scene, View};
+use gate::scene::{Backdrop, OPENING_S, Scene, View};
 use theme::{VIRTUAL_H, VIRTUAL_W};
 
 const SCALE: u32 = 4;
@@ -14,8 +15,12 @@ const FPS: f32 = 25.0;
 const MAX_CELEBRATION_S: f32 = 25.0;
 
 fn main() {
-    let mut args = std::env::args().skip(1);
-    let dir = args.next().expect("usage: preview <out-dir> [music.wav]");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let tavern = args.iter().any(|a| a == "--tavern");
+    let mut args = args.into_iter().filter(|a| a != "--tavern");
+    let dir = args
+        .next()
+        .expect("usage: preview <out-dir> [music.wav] [--tavern]");
     let (beat, music, seconds) = match args.next() {
         Some(path) => {
             let wav = audio::wav::parse(&std::fs::read(&path).unwrap()).unwrap();
@@ -38,7 +43,11 @@ fn main() {
         ),
     };
 
-    let scene = Scene::new();
+    let scene = Scene::with_backdrop(if tavern {
+        Backdrop::Tavern
+    } else {
+        Backdrop::Lasers
+    });
     let mut frame = vec![[0u8; 3]; (VIRTUAL_W * VIRTUAL_H) as usize];
     let mut render = |subdir: &str, name: &str, length: f32, view: &dyn Fn(f32) -> View| {
         let out = format!("{dir}/{subdir}");
@@ -61,6 +70,7 @@ fn main() {
     });
     render("", "3-thinking", 1.0, &|t| View::Thinking { t });
     render("", "4-wrong", 1.2, &|t| View::Wrong { t });
+    render("", "6-opening", OPENING_S, &|t| View::Opening { t });
     render("celebration", "frame", seconds, &|t| View::Celebrating {
         t,
         beat,

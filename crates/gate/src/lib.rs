@@ -5,3 +5,4 @@ pub mod beat;
 pub mod head3d;
 pub mod recognize;
 pub mod scene;
+pub mod voice;
