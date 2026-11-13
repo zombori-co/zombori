@@ -42,7 +42,7 @@ dependencies = [
 
 [[package]]
 name = "audio"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alsa",
 ]
@@ -75,7 +75,7 @@ checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 
 [[package]]
 name = "bootsound"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "audio",
 ]
@@ -251,7 +251,7 @@ checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
 name = "gate"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "audio",
  "png",
@@ -268,7 +268,7 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "greeter"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "hashbrown"
@@ -468,7 +468,7 @@ dependencies = [
 
 [[package]]
 name = "screen"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "drm",
  "theme",
@@ -539,7 +539,7 @@ checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
 
 [[package]]
 name = "splash"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "png",
  "screen",
@@ -570,7 +570,7 @@ dependencies = [
 
 [[package]]
 name = "tavern"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "audio",
  "gate",
@@ -582,7 +582,7 @@ dependencies = [
 
 [[package]]
 name = "theme"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "png",
 ]
