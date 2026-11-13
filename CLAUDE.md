@@ -15,6 +15,9 @@ at `/mnt/zombori`, so there is no copying.
   reboot, observe. The binaries are Linux ARM64 and talk to `/dev/dri` (GPU) and `/dev/snd` (ALSA).
 - **Builder VM** (`vm/builder.sh`): a stock Debian that gets the target disk as `/dev/vdb`; used for
   the hand install and for repairs (mount `vdb2`, `arch-chroot`).
+- **MacBook Air M1** (real hardware, `docs/05-m1-air.md`): Debian testing on Asahi Linux, Zombori as
+  the main system. Its own clone in `~/zombori` (no 9p); reached over SSH on the local network
+  (`ssh -i ~/.ssh/id_ed25519_zombori <user>@<address>`). Same ARM64, different sound and screen.
 
 Prompts tell them apart: `<mac-user>@<mac>` / `<user>@zombori` / `root@localhost`. Commands that use
 `/mnt/zombori` only work inside the target VM.
@@ -70,11 +73,12 @@ system/
   dev-install.sh             builds the workspace in the VM, installs zombori-<crate> + units,
                              the Whisper model and the gate's clips into /usr/local/share/zombori
   <component>/*.service      systemd units, installed to /etc/systemd/system/
+  apple-m1/asound.conf       ALSA default device for the MacBook Air M1 (speakers + raw mics)
 vm/             QEMU scripts; common.sh holds the shared machine definition
 assets/         logo/ (pixel art + generators), sounds/ (boot.wav, celebrate placeholder;
                 local/ = your own clips, git-ignored)
 docs/           FOUNDATION.md (plan), 01 hand install, 02 dev loop + splash + boot sound, 03 gate,
-                04 tavern
+                04 tavern, 05 MacBook Air M1 (real hardware)
 ```
 
 Boot order: UEFI → GRUB → kernel → initramfs → systemd → [splash, bootsound] → [gate] → greetd
@@ -121,6 +125,12 @@ attribution as well; this rule applies even where that setting does not reach.
 # Gotchas
 
 - Building on the 9p share is slow: `dev-install.sh` puts `CARGO_TARGET_DIR` on the VM's own disk.
+- Real hardware splits what the VM has in one device: on the Air, the GPU (`asahi`, no outputs)
+  and the panel (`apple-drm`) are separate DRM cards, and speakers and microphones are separate
+  sound cards. Never assume one card; `screen` and `alsa_io` must keep tolerating that.
+- On the Air, `speakersafetyd` locks the speaker volume and unlocks the speakers a few ms into boot;
+  `alsa_io` retries opening for up to 5 s. The built-in microphones are raw 32-bit float without
+  gain (`system/apple-m1/asound.conf` converts and amplifies).
 - QEMU's macOS audio backend (coreaudio) only plays; it cannot record. The VM's microphone is the
   Mac's, streamed by `vm/mic.sh` as UDP to port 4713 (UDP: no connection to go stale when the VM
   reboots) and played into the Loopback card by
