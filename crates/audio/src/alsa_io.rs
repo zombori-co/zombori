@@ -1,6 +1,9 @@
 //! Playing and recording through ALSA's "default" device, which converts rate and channel count
 //! when the card can't take ours directly.
 
+use std::thread::sleep;
+use std::time::{Duration, Instant};
+
 use alsa::pcm::{Access, Format, HwParams, IO, PCM};
 use alsa::{Direction, ValueOr};
 
@@ -8,7 +11,25 @@ use crate::wav::Wav;
 
 type Result<T> = std::result::Result<T, alsa::Error>;
 
+/// How long to keep trying a device that isn't ready yet. Early in boot a card can exist before
+/// it can play: on Apple Silicon the speakers only open once speakersafetyd has unlocked them.
+const OPEN_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Half a second of buffer, as aplay and arecord use. Left alone, ALSA picks the largest buffer
+/// the device allows, which a chain of plugins (format, mixing, rate) may fail to allocate.
+const BUFFER_US: u32 = 500_000;
+
 fn open(direction: Direction, rate: u32, channels: u16) -> Result<PCM> {
+    let deadline = Instant::now() + OPEN_TIMEOUT;
+    loop {
+        match try_open(direction, rate, channels) {
+            Err(_) if Instant::now() < deadline => sleep(Duration::from_millis(200)),
+            result => return result,
+        }
+    }
+}
+
+fn try_open(direction: Direction, rate: u32, channels: u16) -> Result<PCM> {
     let pcm = PCM::new("default", direction, false)?;
     {
         let hw = HwParams::any(&pcm)?;
@@ -16,6 +37,7 @@ fn open(direction: Direction, rate: u32, channels: u16) -> Result<PCM> {
         hw.set_rate(rate, ValueOr::Nearest)?;
         hw.set_format(Format::s16())?;
         hw.set_access(Access::RWInterleaved)?;
+        hw.set_buffer_time_near(BUFFER_US, ValueOr::Nearest)?;
         pcm.hw_params(&hw)?;
     }
     Ok(pcm)

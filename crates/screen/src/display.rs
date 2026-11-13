@@ -79,13 +79,27 @@ impl Display {
         cards.sort();
         for path in cards {
             let Ok(card) = open_card(&path) else { continue };
-            let driver = card.get_driver()?.name().to_string_lossy().into_owned();
+            let Ok(driver) = card.get_driver() else {
+                continue;
+            };
+            let driver = driver.name().to_string_lossy().into_owned();
             if driver == FIRMWARE_DRIVER && !accept_firmware {
                 continue;
             }
-            if let Some(display) = Self::setup(card)? {
-                eprintln!("screen: using {} ({driver})", path.display());
-                return Ok(Some(display));
+            // Some machines split the GPU from the display controller (Apple Silicon: `asahi`
+            // renders, `apple-drm` drives the panel). A card that can't do modesetting refuses
+            // with an error, which only means: not this one, try the next.
+            match Self::setup(card) {
+                Ok(Some(display)) => {
+                    eprintln!("screen: using {} ({driver})", path.display());
+                    return Ok(Some(display));
+                }
+                Ok(None) => {}
+                // Said once, on the last attempt, rather than every 50 ms while waiting.
+                Err(e) if accept_firmware => {
+                    eprintln!("screen: skipping {} ({driver}): {e}", path.display())
+                }
+                Err(_) => {}
             }
         }
         Ok(None)
